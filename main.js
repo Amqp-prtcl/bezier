@@ -72,7 +72,7 @@ const nlerp = (/**@type Point[]*/points, t) => {
 }
 
 const nbezier = (/**@type Point[]*/points) => {
-    for (t = 0.0; t < 1.0; t += 0.001) {
+    for (t = 0.0; t < 1.0; t += 0.1) {
         psmall(nlerp(points, t), "red")
     }
 }
