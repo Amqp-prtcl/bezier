@@ -57,6 +57,18 @@ const lerp = (/**@type Point*/pa, /**@type Point*/pb, /**@type number*/t) => {
 //////////////////////////////  n render  //////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////
 
+/** 
+ * @return {Bezier}
+ * */
+const newBezier = (/**@type Point*/p) => {
+    return {
+        points: [p],
+        push: function (p) {
+            this.points.push(p)
+        },
+    }
+}
+
 const nlerp = (/**@type Point[]*/points, t) => {
     while (points.length > 1) {
         ps = []
@@ -72,7 +84,7 @@ const nlerp = (/**@type Point[]*/points, t) => {
 }
 
 const nbezier = (/**@type Point[]*/points) => {
-    for (t = 0.0; t < 1.0; t += 0.1) {
+    for (t = 0.0; t < 1.0; t += 0.001) {
         psmall(nlerp(points, t), "red")
     }
 }
@@ -91,13 +103,36 @@ const nrender = (/**@type Point[]*/points) => {
 }
 
 ////////////////////////////////////////////////////////////////////////////
+/////////////////////////  multi-bezier render  ////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+
+/** @typedef {Point[]} Bezier */
+
+const manager = new function Manager() {
+    this.sel = 0
+    this.beziers = []
+    this.addPoint = function (/**@type Point*/p, /**@type boolean*/alt) {
+        if (alt) {
+            this.beziers.push(newBezier(p))
+        }
+        this.beziers.push(bezier)
+    }
+
+    this.render = () => {
+        for (i = 0; i < this.beziers.length; i++) {
+            nbezier(this.beziers[i])
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////
 //////////////////////////////  canvas  ////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////
 
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const resize = () => {
-    canvas.width = window.innerWidth;
+    canvas.width = window.widinnerWidth;
     canvas.height = window.innerHeight;
 }
 resize()
@@ -105,7 +140,6 @@ window.addEventListener('resize', resize)
 
 const /**@type Point[]*/points = []
 
-//render(pa, pb, pc, pd)
 nrender(points)
 
 var sel = -1;
@@ -129,11 +163,115 @@ canvas.onmousemove = (e) => {
     points[sel].x = pm.x
     points[sel].y = pm.y
 
-    //render(pa, pb, pc, pd)
     nrender(points)
 }
 
 canvas.ondblclick = (e) => {
+    if (e.altKey) { // new bezier
+
+    }
     points.push(np(e.x, e.y))
     nrender(points)
+}
+
+////////////////////////////////////////////////////////////////////////////
+//////////////////////////////  rebuild  ///////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+
+const getNearPoint = (/**@type Point*/p, rad) => {
+    for (ib = 0; ib < beziers.length; ib++) {
+        for (ip = 0; ip < beziers[ib].length; ip++) {
+            if (pnear(beziers[ib][ip], p, rad)) {
+                return [b, ip]
+            }
+        }
+    }
+    return [-1, -1]
+}
+
+var selb = -1
+var sellocb = -1
+var isDown = false
+const /**@type Bezier[]*/ beziers = []
+
+const render = () => {
+    beziers.forEach((b, ib) => {
+        b.forEach((p, ip) => {
+            if (ib == selb && ip == sellocb) {
+                pbold(p, "red")
+            } else {
+                pbold(p, "blue")
+            }
+        })
+        nbezier(b)
+    })
+}
+
+const rad = 10
+const onmousedown = (e) => {
+    var pm = np(e.x, e.y)
+    [selb, sellocb] = getNearPoint(pm, rad)
+    isDown = (selb != -1 && sellocb != -1)
+    render()
+}
+
+const onmousemove = (e) => {
+    if (!isDown) {
+        return
+    }
+    if (selb == -1 || sellocb == -1) {
+        return
+    }
+    var pm = np(e.x, e.y)
+    beziers[selb][sellocb].x = pm.x
+    beziers[selb][sellocb].y = pm.y
+    render()
+}
+
+const onmouseup = (e) => {
+    isDown = false
+}
+
+const ondblclick = (e) => {
+    var pm = np(e.x, e.y)
+    if (e.altKey) { // remove point
+        if (selb == -1 || sellocb == -1) { // if not point selected
+            return
+        }
+        beziers[selb].splice(sellocb, 1) // removes point
+        render()
+        return
+    }
+    if (selb == -1 || sellocb == -1) { // if no point selected
+        // add point at mouse
+        if (beziers.length==0) {
+            beziers.push(newBezier(pm))
+            render()
+            return
+        }
+        beziers[beziers.length-1].push(pm)
+        return
+    }
+    const [nselb, nsellocb, ok] = getNextAddress(selb, sellocb)
+    if (!ok) {
+        return // is last point -> do nothing
+    }
+
+
+
+    selb = nselb
+    sellocb = nsellocb
+
+    // add point between sel point and next
+    //if last point do nothing
+}
+
+const getNextAddress = (selb, sellocb) => {
+    if (beziers[selb].length-1 == sellocb) { // is last bezier in point
+        if (beziers.length-1 == selb) { // is last bezier
+            return [selb, sellocb, false] // there is no next address
+        }
+        return [selb+1, 0, true] // next bezier
+    }
+    return [selb, sellocb+1, true] // just return net point
 }
