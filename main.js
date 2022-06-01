@@ -14,6 +14,9 @@ const near = (/**@type Point*/a, /**@type Point*/b, /**@type number*/pre) => {
 }
 
 const pnear = (/**@type Point*/pa, /**@type Point*/pb, /**@type number*/rad) => {
+    console.log(pa)
+    console.log(pb)
+    console.log(rad)
     return near(pa.x, pb.x, rad) && near(pa.y, pb.y, rad)
 }
 
@@ -61,12 +64,7 @@ const lerp = (/**@type Point*/pa, /**@type Point*/pb, /**@type number*/t) => {
  * @return {Bezier}
  * */
 const newBezier = (/**@type Point*/p) => {
-    return {
-        points: [p],
-        push: function (p) {
-            this.points.push(p)
-        },
-    }
+    return [p]
 }
 
 const nlerp = (/**@type Point[]*/points, t) => {
@@ -132,7 +130,7 @@ const manager = new function Manager() {
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const resize = () => {
-    canvas.width = window.widinnerWidth;
+    canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 }
 resize()
@@ -144,34 +142,19 @@ nrender(points)
 
 var sel = -1;
 canvas.onmousedown = (e) => {
-    const rad = 10
-    const pm = np(e.x, e.y)
-
-    points.forEach((p, i) => { if (pnear(pm, p, rad)) { sel = i } })
+    onmousedown(e)
 }
 
 canvas.onmouseup = (e) => {
-    sel = -1
+    onmouseup(e)
 }
 
 canvas.onmousemove = (e) => {
-    if (sel == -1) {
-        return
-    }
-    const pm = np(e.x, e.y)
-
-    points[sel].x = pm.x
-    points[sel].y = pm.y
-
-    nrender(points)
+    onmousemove(e)
 }
 
 canvas.ondblclick = (e) => {
-    if (e.altKey) { // new bezier
-
-    }
-    points.push(np(e.x, e.y))
-    nrender(points)
+    ondblclick(e)
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -179,10 +162,13 @@ canvas.ondblclick = (e) => {
 ////////////////////////////////////////////////////////////////////////////
 
 const getNearPoint = (/**@type Point*/p, rad) => {
-    for (ib = 0; ib < beziers.length; ib++) {
-        for (ip = 0; ip < beziers[ib].length; ip++) {
+    for (var ib = 0; ib < beziers.length; ib++) {
+        for (var ip = 0; ip < beziers[ib].length; ip++) {
+            console.log(ib, ip)
+            console.log(beziers[ib])
+            console.log(beziers[ib][ip])
             if (pnear(beziers[ib][ip], p, rad)) {
-                return [b, ip]
+                return [ib, ip]
             }
         }
     }
@@ -194,7 +180,9 @@ var sellocb = -1
 var isDown = false
 const /**@type Bezier[]*/ beziers = []
 
+
 const render = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
     beziers.forEach((b, ib) => {
         b.forEach((p, ip) => {
             if (ib == selb && ip == sellocb) {
@@ -210,7 +198,11 @@ const render = () => {
 const rad = 10
 const onmousedown = (e) => {
     var pm = np(e.x, e.y)
-    [selb, sellocb] = getNearPoint(pm, rad)
+    console.log(pm)
+    const vals = getNearPoint(pm, rad)
+    selb = vals[0]
+    sellocb = vals[1]
+    console.log(selb, sellocb)
     isDown = (selb != -1 && sellocb != -1)
     render()
 }
@@ -235,21 +227,29 @@ const onmouseup = (e) => {
 const ondblclick = (e) => {
     var pm = np(e.x, e.y)
     if (e.altKey) { // remove point
+        console.log('alted')
+
         if (selb == -1 || sellocb == -1) { // if not point selected
+            console.log('no point selected')
             return
         }
         beziers[selb].splice(sellocb, 1) // removes point
+        console.log('spliced')
         render()
         return
     }
+    console.log('unalted')
     if (selb == -1 || sellocb == -1) { // if no point selected
         // add point at mouse
-        if (beziers.length==0) {
+        if (beziers.length == 0) {
             beziers.push(newBezier(pm))
+            console.log(beziers)
             render()
             return
         }
-        beziers[beziers.length-1].push(pm)
+        beziers[beziers.length - 1].push(pm)
+        console.log(beziers)
+        render()
         return
     }
     const [nselb, nsellocb, ok] = getNextAddress(selb, sellocb)
@@ -257,21 +257,22 @@ const ondblclick = (e) => {
         return // is last point -> do nothing
     }
 
-
-
     selb = nselb
     sellocb = nsellocb
+
+    beziers[selb].splice(sellocb, 0, {x:pm.x+10, y:pm.y+10})
+    render()
 
     // add point between sel point and next
     //if last point do nothing
 }
 
 const getNextAddress = (selb, sellocb) => {
-    if (beziers[selb].length-1 == sellocb) { // is last bezier in point
-        if (beziers.length-1 == selb) { // is last bezier
+    if (beziers[selb].length - 1 == sellocb) { // is last bezier in point
+        if (beziers.length - 1 == selb) { // is last bezier
             return [selb, sellocb, false] // there is no next address
         }
-        return [selb+1, 0, true] // next bezier
+        return [selb + 1, 0, true] // next bezier
     }
-    return [selb, sellocb+1, true] // just return net point
+    return [selb, sellocb + 1, true] // just return net point
 }
